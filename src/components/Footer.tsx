@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="bg-neutral-50 border-t border-neutral-200 py-12">
       <div className="max-w-7xl mx-auto px-4 md:px-12 flex flex-col md:flex-row justify-between items-center gap-8">
         <div>
-          <img src="/images/im3gunma.PNG" alt="IM3 Gunma" className="h-14 w-auto" />
+          <img src="/images/logo-header.png" alt="IM3 Gunma" className="h-14 w-auto" />
         </div>
         
         <div className="flex flex-wrap justify-center gap-8">

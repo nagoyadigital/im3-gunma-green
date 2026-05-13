@@ -1,7 +1,6 @@
-import React, { useState } from "react";
-import { ShieldCheck, User, Users, Search, Download, Plus, ChevronRight, ChevronLeft, Phone, Mail, LogOut, CheckCircle2, Circle, UserCheck } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { ShieldCheck, User, Users, Search, Download, Plus, ChevronRight, ChevronLeft, Phone, Mail, LogOut, CheckCircle2, Circle, UserCheck, Trash2 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
-import { motion } from "motion/react";
 
 export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -35,13 +34,11 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
       <div className="absolute inset-0 opacity-[0.02] pointer-events-none" 
              style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #004532 1px, transparent 0)', backgroundSize: '24px 24px' }} />
       
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white p-12 rounded-2xl shadow-2xl border border-neutral-100 flex flex-col items-center"
+      <div 
+        className="w-full max-w-md bg-white p-12 rounded-2xl shadow-2xl border border-neutral-100 flex flex-col items-center animate-fade-in"
       >
         <div className="mb-8">
-          <img src="/images/im3gunma.PNG" alt="IM3 Gunma" className="h-20 w-auto mx-auto" />
+          <img src="/images/logo-header.png" alt="IM3 Gunma" className="h-16 w-auto mx-auto" />
         </div>
         
         <div className="text-center mb-10">
@@ -84,7 +81,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             Authorize Login
           </button>
         </form>
-      </motion.div>
+      </div>
     </section>
   );
 }
@@ -92,15 +89,31 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [searchTerm, setSearchTerm] = useState("");
   
-  const [participants, setParticipants] = useState([
-    { id: "REG-00124", name: "Ahmad Hidayat", job: "Software Engineer", phone: "+81 80-1234-5678", email: "ahmad.h@example.jp", location: "Ota City, Gunma", time: "May 12, 14:32", status: "Confirmed", hadir: false },
-    { id: "REG-00123", name: "Fatima Zahra", job: "Healthcare Worker", phone: "+81 90-8765-4321", email: "fatima.z@outlook.com", location: "Maebashi, Gunma", time: "May 12, 11:15", status: "Confirmed", hadir: false },
-    { id: "REG-00122", name: "Budi Santoso", job: "Factory Technician", phone: "+81 70-5555-9999", email: "budi_s@gmail.com", location: "Isesaki, Gunma", time: "May 11, 20:05", status: "Confirmed", hadir: false },
-    { id: "REG-00121", name: "Siti Aminah", job: "Teacher", phone: "+81 80-2222-3333", email: "siti.amin@school.jp", location: "Takasaki, Gunma", time: "May 11, 18:45", status: "Confirmed", hadir: false }
-  ]);
+  const [participants, setParticipants] = useState<Array<{id: string; name: string; job: string; phone: string; email: string; location: string; time: string; status: string; hadir: boolean}>>([]);
+
+  // Load from localStorage
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem("im3gunma_registrations") || "[]");
+    setParticipants(stored.map((p: any) => ({ ...p, status: "Confirmed", hadir: p.hadir || false })));
+  }, []);
+
+  // Save to localStorage when participants change
+  useEffect(() => {
+    if (participants.length > 0) {
+      localStorage.setItem("im3gunma_registrations", JSON.stringify(participants));
+    }
+  }, [participants]);
 
   const toggleHadir = (id: string) => {
     setParticipants(prev => prev.map(p => p.id === id ? { ...p, hadir: !p.hadir } : p));
+  };
+
+  const deleteParticipant = (id: string) => {
+    if (window.confirm("Yakin ingin menghapus data ini?")) {
+      const updated = participants.filter(p => p.id !== id);
+      setParticipants(updated);
+      localStorage.setItem("im3gunma_registrations", JSON.stringify(updated));
+    }
   };
 
   const totalHadir = participants.filter(p => p.hadir).length;
@@ -269,6 +282,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <th className="px-6 py-5 text-xs font-bold text-primary uppercase tracking-widest">Kontak</th>
                 <th className="px-6 py-5 text-xs font-bold text-primary uppercase tracking-widest">Lokasi</th>
                 <th className="px-6 py-5 text-xs font-bold text-primary uppercase tracking-widest">Waktu Daftar</th>
+                <th className="px-6 py-5 text-xs font-bold text-primary uppercase tracking-widest text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-50">
@@ -304,6 +318,14 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   </td>
                   <td className="px-6 py-6 text-sm text-neutral-600">{person.location}</td>
                   <td className="px-6 py-6 text-xs font-bold text-neutral-400 uppercase tracking-tighter">{person.time}</td>
+                  <td className="px-6 py-6 text-center">
+                    <button 
+                      onClick={() => deleteParticipant(person.id)}
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-all"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -329,6 +351,13 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
       {/* Mobile Card List */}
       <div className="md:hidden space-y-3">
+        {filteredParticipants.length === 0 && (
+          <div className="text-center py-12 text-neutral-400">
+            <Users size={40} className="mx-auto mb-4 opacity-30" />
+            <p className="font-bold">Belum ada data registrasi</p>
+            <p className="text-xs mt-1">Data akan muncul setelah jamaah mendaftar.</p>
+          </div>
+        )}
         {filteredParticipants.map((person) => (
           <div 
             key={person.id} 
@@ -363,11 +392,19 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
             </div>
 
             {/* Status badge */}
-            <div className={cn(
-              "text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shrink-0",
-              person.hadir ? "bg-primary/10 text-primary" : "bg-neutral-100 text-neutral-400"
-            )}>
-              {person.hadir ? "Hadir" : "—"}
+            <div className="flex flex-col items-end gap-2">
+              <div className={cn(
+                "text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-full shrink-0",
+                person.hadir ? "bg-primary/10 text-primary" : "bg-neutral-100 text-neutral-400"
+              )}>
+                {person.hadir ? "Hadir" : "—"}
+              </div>
+              <button 
+                onClick={() => deleteParticipant(person.id)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-all"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           </div>
         ))}

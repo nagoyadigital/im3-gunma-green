@@ -12,7 +12,7 @@ export default function Navigation() {
     <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
       <nav className="flex justify-between items-center px-4 md:px-12 h-20 max-w-7xl mx-auto">
         <Link to="/" className="flex items-center gap-3">
-          <img src="/images/im3gunma.PNG" alt="IM3 Gunma" className="h-12 w-auto" />
+          <img src="/images/logo-header.png" alt="IM3 Gunma" className="h-12 w-auto" />
         </Link>
         
         <div className="hidden md:flex gap-8 items-center">

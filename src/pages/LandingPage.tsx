@@ -1,6 +1,5 @@
 import { Calendar, Clock, MapPin, User, ArrowRight, Instagram, CheckCircle2, ShieldCheck, CloudDownload, ExternalLink, Star } from "lucide-react";
 import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
 import { cn } from "@/src/lib/utils";
 
 export default function LandingPage() {
@@ -13,6 +12,8 @@ export default function LandingPage() {
 
   const [igFollowed, setIgFollowed] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [formData, setFormData] = useState<{name: string; job: string; address: string; phone: string; email: string} | null>(null);
 
   // Countdown to Rabu, 27 Mei 2026 08:30 JST
   useEffect(() => {
@@ -40,11 +41,51 @@ export default function LandingPage() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (igFollowed) {
-      setShowSuccess(true);
+    const form = e.currentTarget;
+    const data = {
+      name: (form.elements.namedItem("nama") as HTMLInputElement).value,
+      job: (form.elements.namedItem("pekerjaan") as HTMLInputElement).value,
+      address: (form.elements.namedItem("alamat") as HTMLTextAreaElement).value,
+      phone: (form.elements.namedItem("whatsapp") as HTMLInputElement).value,
+      email: (form.elements.namedItem("email") as HTMLInputElement).value,
+    };
+
+    // Cek duplikat email atau nomor
+    const existing = JSON.parse(localStorage.getItem("im3gunma_registrations") || "[]");
+    const dupEmail = existing.find((p: any) => p.email === data.email);
+    const dupPhone = existing.find((p: any) => p.phone === data.phone);
+
+    if (dupEmail) {
+      alert("Email ini sudah terdaftar. Silakan gunakan email lain.");
+      return;
     }
+    if (dupPhone) {
+      alert("Nomor WhatsApp ini sudah terdaftar. Silakan gunakan nomor lain.");
+      return;
+    }
+
+    setFormData(data);
+    setShowConfirm(true);
+  };
+
+  const confirmRegistration = () => {
+    if (!formData) return;
+    // Save to localStorage
+    const existing = JSON.parse(localStorage.getItem("im3gunma_registrations") || "[]");
+    const newEntry = {
+      id: `REG-${String(existing.length + 1).padStart(5, "0")}`,
+      ...formData,
+      location: formData.address,
+      time: new Date().toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      hadir: false,
+    };
+    existing.push(newEntry);
+    localStorage.setItem("im3gunma_registrations", JSON.stringify(existing));
+    setShowConfirm(false);
+    setShowSuccess(true);
+    setFormData(null);
   };
 
   return (
@@ -85,32 +126,18 @@ export default function LandingPage() {
              }} />
         
         <div className="max-w-7xl mx-auto px-4 md:px-12 relative z-10 flex flex-col items-center text-center">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <img src="/images/hero logo.PNG" alt="IM3 Gunma" className="h-28 md:h-36 w-auto mx-auto" />
-          </motion.div>
+          <div className="mb-8 animate-fade-in">
+            <img src="/images/hero-logo.png" alt="IM3 Gunma" className="h-28 md:h-36 w-auto mx-auto" />
+          </div>
 
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="mb-8 inline-flex items-center gap-2 bg-on-primary-fixed/20 text-on-primary-container px-5 py-1.5 rounded-full border border-white/10 backdrop-blur-sm"
-          >
+          <div className="mb-8 inline-flex items-center gap-2 bg-on-primary-fixed/20 text-on-primary-container px-5 py-1.5 rounded-full border border-white/10 backdrop-blur-sm animate-fade-in">
             <Star size={16} className="text-secondary-container" />
             <span className="font-sans text-xs font-semibold tracking-widest uppercase">EID AL-ADHA 1447 H</span>
-          </motion.div>
+          </div>
           
-          <motion.h1 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className="font-serif text-5xl md:text-7xl text-on-primary-container max-w-4xl mb-2 tracking-tight font-bold"
-          >
+          <h1 className="font-serif text-5xl md:text-7xl text-on-primary-container max-w-4xl mb-2 tracking-tight font-bold animate-fade-in">
             Sholat Idul Adha 1447 H
-          </motion.h1>
+          </h1>
           <p className="font-serif text-3xl md:text-4xl text-on-primary-container/70 mb-6">
             with IM3 Gunma
           </p>
@@ -126,32 +153,26 @@ export default function LandingPage() {
               { val: timeLeft.minutes, label: "Minutes" },
               { val: timeLeft.seconds, label: "Seconds" },
             ].map((t, i) => (
-              <motion.div 
+              <div 
                 key={t.label}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + i * 0.1 }}
-                className="flex flex-col items-center group"
+                className="flex flex-col items-center group animate-fade-in"
               >
                 <div className="font-serif text-5xl md:text-6xl text-on-primary-container mb-2 group-hover:scale-105 transition-transform duration-500">
                   {String(t.val).padStart(2, '0')}{i === 0 && <span className="text-2xl text-secondary-container">+</span>}
                 </div>
                 <div className="h-px w-8 bg-secondary-container/30 mb-2" />
                 <div className="font-sans text-[10px] uppercase tracking-[0.2em] text-on-primary-container/50">{t.label}</div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
-          <motion.a 
+          <a 
             href="#registration"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="group bg-secondary-container text-on-secondary-container px-12 py-4 rounded-full font-bold text-sm shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex items-center gap-3"
+            className="group bg-secondary-container text-on-secondary-container px-12 py-4 rounded-full font-bold text-sm shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 animate-fade-in"
           >
             <span>DAFTAR SEKARANG</span>
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-          </motion.a>
+          </a>
         </div>
         
         {/* Curvy bottom separator */}
@@ -202,9 +223,10 @@ export default function LandingPage() {
               </div>
               <div className="md:w-1/3 aspect-video md:aspect-auto rounded-xl overflow-hidden shadow-lg">
                 <img 
-                  src="/images/ishihara-park.png" 
+                  src="/images/ishihara-park.jpg" 
                   alt="Ishihara Ryokuchi Park" 
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -285,11 +307,12 @@ export default function LandingPage() {
                </div>
             </div>
             
-            <div className="hidden lg:block h-64 rounded-2xl overflow-hidden grayscale opacity-20 hover:opacity-100 transition-opacity duration-1000">
+            <div className="hidden lg:block h-64 rounded-2xl overflow-hidden">
                <img 
-                src="https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&q=80&w=800" 
-                alt="Sholat berjamaah" 
+                src="/images/masjid-istiqomah.webp" 
+                alt="Masjid Istiqomah Gunma" 
                 className="w-full h-full object-cover"
+                loading="lazy"
                />
             </div>
           </div>
@@ -307,6 +330,7 @@ export default function LandingPage() {
                   <label className="text-xs font-bold text-neutral-400 tracking-widest uppercase px-1">Nama Lengkap</label>
                   <input 
                     required
+                    name="nama"
                     type="text" 
                     placeholder="Masukkan nama"
                     className="w-full px-5 py-4 rounded-xl border border-neutral-200 focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all"
@@ -316,6 +340,7 @@ export default function LandingPage() {
                   <label className="text-xs font-bold text-neutral-400 tracking-widest uppercase px-1">Pekerjaan</label>
                   <input 
                     required
+                    name="pekerjaan"
                     type="text" 
                     placeholder="Masukkan pekerjaan"
                     className="w-full px-5 py-4 rounded-xl border border-neutral-200 focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all"
@@ -327,6 +352,7 @@ export default function LandingPage() {
                 <label className="text-xs font-bold text-neutral-400 tracking-widest uppercase px-1">Alamat di Jepang</label>
                 <textarea 
                   required
+                  name="alamat"
                   placeholder="Contoh: Takasaki, Gunma" 
                   className="w-full px-5 py-4 rounded-xl border border-neutral-200 focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all min-h-[100px]"
                 />
@@ -337,6 +363,7 @@ export default function LandingPage() {
                   <label className="text-xs font-bold text-neutral-400 tracking-widest uppercase px-1">WhatsApp</label>
                   <input 
                     required
+                    name="whatsapp"
                     type="tel" 
                     placeholder="080-XXXX-XXXX"
                     className="w-full px-5 py-4 rounded-xl border border-neutral-200 focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all"
@@ -346,6 +373,7 @@ export default function LandingPage() {
                   <label className="text-xs font-bold text-neutral-400 tracking-widest uppercase px-1">Email</label>
                   <input 
                     required
+                    name="email"
                     type="email" 
                     placeholder="nama@email.com"
                     className="w-full px-5 py-4 rounded-xl border border-neutral-200 focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all"
@@ -376,26 +404,49 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white max-w-sm w-full rounded-3xl shadow-2xl p-8 text-center animate-fade-in">
+            <div className="w-16 h-16 bg-secondary-container/20 text-secondary rounded-full flex items-center justify-center mx-auto mb-6">
+              <Instagram size={36} />
+            </div>
+            <h2 className="font-serif text-2xl text-primary mb-3 font-bold">Konfirmasi</h2>
+            <p className="text-neutral-600 mb-8">Apakah kamu beneran sudah follow Instagram <strong>@im3_gunma</strong>?</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 py-3.5 rounded-xl border-2 border-neutral-200 text-neutral-500 font-bold hover:bg-neutral-50 transition-colors"
+              >
+                Belum
+              </button>
+              <button 
+                onClick={confirmRegistration}
+                className="flex-1 py-3.5 rounded-xl bg-primary text-white font-bold hover:bg-primary-container transition-colors shadow-lg"
+              >
+                Iya, Sudah
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Success Modal */}
       {showSuccess && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white max-w-md w-full rounded-3xl shadow-2xl p-10 text-center border-t-8 border-primary"
-          >
+          <div className="bg-white max-w-md w-full rounded-3xl shadow-2xl p-10 text-center border-t-8 border-primary animate-fade-in">
             <div className="w-24 h-24 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-8">
               <CheckCircle2 size={56} />
             </div>
             <h2 className="font-serif text-3xl text-primary mb-4 font-bold">Alhamdulillah</h2>
-            <p className="text-neutral-600 mb-10 text-lg">Pendaftaran berhasil. Semoga Allah menerima amal ibadah kita semua 🤲</p>
+            <p className="text-neutral-600 mb-10 text-lg">Terima kasih sudah mendaftar! Semoga Allah menerima amal ibadah kita semua. Sampai jumpa di hari H 🤲</p>
             <button 
-              onClick={() => setShowSuccess(false)}
+              onClick={() => { setShowSuccess(false); window.location.reload(); }}
               className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-primary-container transition-colors shadow-lg"
             >
               Tutup
             </button>
-          </motion.div>
+          </div>
         </div>
       )}
     </div>
