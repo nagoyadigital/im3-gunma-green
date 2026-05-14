@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ShieldCheck, User, Users, Search, Download, Plus, ChevronRight, ChevronLeft, Phone, Mail, LogOut, CheckCircle2, Circle, UserCheck, Trash2 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import { getAllParticipants, updateHadir as apiUpdateHadir, deleteParticipant as apiDeleteParticipant, type Participant } from "@/src/lib/api";
 
 export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -88,37 +89,49 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 
 function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [searchTerm, setSearchTerm] = useState("");
-  
-  const [participants, setParticipants] = useState<Array<{id: string; name: string; job: string; phone: string; email: string; location: string; time: string; status: string; hadir: boolean}>>([]);
+  const [loading, setLoading] = useState(true);
+  const [participants, setParticipants] = useState<Participant[]>([]);
 
-  // Load from localStorage
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("im3gunma_registrations") || "[]");
-    setParticipants(stored.map((p: any) => ({ ...p, status: "Confirmed", hadir: p.hadir || false })));
-  }, []);
-
-  // Save to localStorage when participants change
-  useEffect(() => {
-    if (participants.length > 0) {
-      localStorage.setItem("im3gunma_registrations", JSON.stringify(participants));
+  // Load from Google Sheets
+  const loadData = async () => {
+    try {
+      const result = await getAllParticipants();
+      if (result.success) {
+        setParticipants(result.data);
+      }
+    } catch (e) {
+      console.error("Failed to load data:", e);
+    } finally {
+      setLoading(false);
     }
-  }, [participants]);
-
-  const toggleHadir = (id: string) => {
-    setParticipants(prev => prev.map(p => p.id === id ? { ...p, hadir: !p.hadir } : p));
   };
 
-  const deleteParticipant = (id: string) => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const toggleHadir = async (id: string) => {
+    const person = participants.find(p => p.id === id);
+    if (!person) return;
+    const newHadir = !person.hadir;
+    setParticipants(prev => prev.map(p => p.id === id ? { ...p, hadir: newHadir } : p));
+    await apiUpdateHadir(id, newHadir);
+  };
+
+  const deleteParticipant = async (id: string) => {
     if (window.confirm("Yakin ingin menghapus data ini?")) {
-      const updated = participants.filter(p => p.id !== id);
-      setParticipants(updated);
-      localStorage.setItem("im3gunma_registrations", JSON.stringify(updated));
+      setParticipants(prev => prev.filter(p => p.id !== id));
+      await apiDeleteParticipant(id);
     }
   };
 
   const totalHadir = participants.filter(p => p.hadir).length;
 
   const exportData = () => {
+    if (participants.length === 0) {
+      alert("Belum ada data untuk di-export.");
+      return;
+    }
     const headers = ["ID", "Nama", "Pekerjaan", "Telepon", "Email", "Lokasi", "Waktu Daftar", "Kehadiran"];
     const rows = participants.map(p => [
       p.id, p.name, p.job, p.phone, p.email, p.location, p.time, p.hadir ? "Hadir" : "Belum Hadir"
@@ -131,15 +144,19 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url;
-    link.download = `absensi-jamaah-im3gunma-${new Date().toISOString().slice(0,10)}.csv`;
+    link.setAttribute("href", url);
+    link.setAttribute("download", `absensi-jamaah-im3gunma-${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
   const exportPdf = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    if (participants.length === 0) {
+      alert("Belum ada data untuk di-export.");
+      return;
+    }
     
     const rows = participants.map(p => `
       <tr>
@@ -152,8 +169,7 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       </tr>
     `).join("");
 
-    printWindow.document.write(`
-      <html>
+    const htmlContent = `<html>
       <head>
         <title>Absensi Jamaah - IM3 Gunma</title>
         <style>
@@ -185,11 +201,19 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         <div class="footer">
           Total Terdaftar: ${participants.length} | Hadir: ${totalHadir} | Belum Hadir: ${participants.length - totalHadir}
         </div>
-        <script>window.onload = function() { window.print(); }</script>
+        <script>window.onload = function() { window.print(); }<\/script>
       </body>
-      </html>
-    `);
-    printWindow.document.close();
+      </html>`;
+
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("target", "_blank");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const filteredParticipants = participants.filter(p => 
@@ -218,9 +242,14 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       </div>
 
       {/* Title */}
-      <div className="mb-6 md:mb-12">
-        <h2 className="font-serif text-2xl md:text-4xl text-primary font-bold">Absensi & Data Jamaah</h2>
-        <p className="text-neutral-500 mt-2 text-sm md:text-base">Kelola kehadiran jamaah Sholat Idul Adha 1447 H.</p>
+      <div className="mb-6 md:mb-12 flex justify-between items-end">
+        <div>
+          <h2 className="font-serif text-2xl md:text-4xl text-primary font-bold">Absensi & Data Jamaah</h2>
+          <p className="text-neutral-500 mt-2 text-sm md:text-base">Kelola kehadiran jamaah Sholat Idul Adha 1447 H.</p>
+        </div>
+        <button onClick={loadData} className="text-xs font-bold text-primary bg-primary/5 px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors">
+          ↻ Refresh
+        </button>
       </div>
 
       {/* Stat Cards - horizontal scroll on mobile */}
@@ -246,33 +275,34 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       </div>
 
       {/* Search Bar */}
-      <div className="mb-4 md:mb-0 md:bg-white md:rounded-3xl md:shadow-xl md:border md:border-neutral-100 md:overflow-hidden">
-        <div className="md:p-8 md:border-b md:border-neutral-50 flex flex-col md:flex-row gap-4 md:gap-8 justify-between items-center">
+      <div className="mb-4 md:mb-0">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-8 justify-between items-center mb-4 md:mb-0">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" size={18} />
             <input 
               type="text" 
               placeholder="Cari nama atau telepon..."
-              className="w-full pl-11 pr-4 py-3 md:py-3.5 bg-neutral-50 border border-neutral-100 rounded-xl md:rounded-2xl text-sm focus:border-primary focus:ring-0 outline-none transition-all"
+              className="w-full pl-11 pr-4 py-3 md:py-3.5 bg-white border border-neutral-100 rounded-xl md:rounded-2xl text-sm focus:border-primary focus:ring-0 outline-none transition-all shadow-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           
-          <div className="hidden md:flex items-center gap-4">
-            <button onClick={exportData} className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border-2 border-secondary text-secondary font-bold text-sm hover:bg-neutral-50 active:scale-95 transition-all">
-              <Download size={18} />
-              Export Excel
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <button onClick={exportData} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-3 md:py-3.5 rounded-xl border-2 border-secondary text-secondary font-bold text-xs md:text-sm hover:bg-neutral-50 active:scale-95 transition-all">
+              <Download size={16} />
+              Excel
             </button>
-            <button onClick={exportPdf} className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border-2 border-primary text-primary font-bold text-sm hover:bg-neutral-50 active:scale-95 transition-all">
-              <Download size={18} />
-              Export PDF
+            <button onClick={exportPdf} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 md:px-6 py-3 md:py-3.5 rounded-xl border-2 border-primary text-primary font-bold text-xs md:text-sm hover:bg-neutral-50 active:scale-95 transition-all">
+              <Download size={16} />
+              PDF
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Desktop Table - hidden on mobile */}
-        <div className="hidden md:block overflow-x-auto">
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white rounded-3xl shadow-xl border border-neutral-100 overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-neutral-50/50">
@@ -330,7 +360,6 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               ))}
             </tbody>
           </table>
-        </div>
 
         {/* Desktop Footer */}
         <div className="hidden md:flex p-8 bg-neutral-50/50 border-t border-neutral-50 flex-row justify-between items-center gap-6">
@@ -351,14 +380,20 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
 
       {/* Mobile Card List */}
       <div className="md:hidden space-y-3">
-        {filteredParticipants.length === 0 && (
+        {loading && (
+          <div className="text-center py-12">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-xs text-neutral-400">Memuat data...</p>
+          </div>
+        )}
+        {!loading && filteredParticipants.length === 0 && (
           <div className="text-center py-12 text-neutral-400">
             <Users size={40} className="mx-auto mb-4 opacity-30" />
             <p className="font-bold">Belum ada data registrasi</p>
             <p className="text-xs mt-1">Data akan muncul setelah jamaah mendaftar.</p>
           </div>
         )}
-        {filteredParticipants.map((person) => (
+        {!loading && filteredParticipants.map((person) => (
           <div 
             key={person.id} 
             className={cn(
@@ -389,6 +424,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                 <Phone size={11} className="text-primary shrink-0" />
                 <span className="text-xs text-neutral-600 truncate">{person.phone}</span>
               </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Mail size={11} className="text-neutral-400 shrink-0" />
+                <span className="text-xs text-neutral-500 truncate">{person.email}</span>
+              </div>
             </div>
 
             {/* Status badge */}
@@ -410,20 +449,10 @@ function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         ))}
 
         {/* Mobile Footer */}
-        <div className="text-center py-4 space-y-3">
+        <div className="text-center py-4">
           <p className="text-xs font-bold text-neutral-400">
             {totalHadir} dari {participants.length} jamaah sudah hadir ✓
           </p>
-          <div className="flex gap-3 justify-center">
-            <button onClick={exportData} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-secondary text-secondary font-bold text-xs active:scale-95 transition-all">
-              <Download size={14} />
-              Excel
-            </button>
-            <button onClick={exportPdf} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-primary text-primary font-bold text-xs active:scale-95 transition-all">
-              <Download size={14} />
-              PDF
-            </button>
-          </div>
         </div>
       </div>
     </section>

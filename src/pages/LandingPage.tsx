@@ -1,6 +1,7 @@
 import { Calendar, Clock, MapPin, User, ArrowRight, Instagram, CheckCircle2, ShieldCheck, CloudDownload, ExternalLink, Star } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { cn } from "@/src/lib/utils";
+import { registerParticipant } from "@/src/lib/api";
 
 export default function LandingPage() {
   const [timeLeft, setTimeLeft] = useState({
@@ -13,6 +14,7 @@ export default function LandingPage() {
   const [igFollowed, setIgFollowed] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<{name: string; job: string; address: string; phone: string; email: string} | null>(null);
 
   // Countdown to Rabu, 27 Mei 2026 08:30 JST
@@ -51,41 +53,35 @@ export default function LandingPage() {
       phone: (form.elements.namedItem("whatsapp") as HTMLInputElement).value,
       email: (form.elements.namedItem("email") as HTMLInputElement).value,
     };
-
-    // Cek duplikat email atau nomor
-    const existing = JSON.parse(localStorage.getItem("im3gunma_registrations") || "[]");
-    const dupEmail = existing.find((p: any) => p.email === data.email);
-    const dupPhone = existing.find((p: any) => p.phone === data.phone);
-
-    if (dupEmail) {
-      alert("Email ini sudah terdaftar. Silakan gunakan email lain.");
-      return;
-    }
-    if (dupPhone) {
-      alert("Nomor WhatsApp ini sudah terdaftar. Silakan gunakan nomor lain.");
-      return;
-    }
-
     setFormData(data);
     setShowConfirm(true);
   };
 
-  const confirmRegistration = () => {
+  const confirmRegistration = async () => {
     if (!formData) return;
-    // Save to localStorage
-    const existing = JSON.parse(localStorage.getItem("im3gunma_registrations") || "[]");
-    const newEntry = {
-      id: `REG-${String(existing.length + 1).padStart(5, "0")}`,
-      ...formData,
-      location: formData.address,
-      time: new Date().toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-      hadir: false,
-    };
-    existing.push(newEntry);
-    localStorage.setItem("im3gunma_registrations", JSON.stringify(existing));
-    setShowConfirm(false);
-    setShowSuccess(true);
-    setFormData(null);
+    setIsSubmitting(true);
+    try {
+      const result = await registerParticipant({
+        name: formData.name,
+        job: formData.job,
+        phone: formData.phone,
+        email: formData.email,
+        location: formData.address,
+      });
+      if (result.success) {
+        setShowConfirm(false);
+        setShowSuccess(true);
+        setFormData(null);
+      } else {
+        alert(result.error || "Gagal mendaftar. Silakan coba lagi.");
+        setShowConfirm(false);
+      }
+    } catch {
+      alert("Terjadi kesalahan jaringan. Silakan coba lagi.");
+      setShowConfirm(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -422,9 +418,10 @@ export default function LandingPage() {
               </button>
               <button 
                 onClick={confirmRegistration}
-                className="flex-1 py-3.5 rounded-xl bg-primary text-white font-bold hover:bg-primary-container transition-colors shadow-lg"
+                disabled={isSubmitting}
+                className="flex-1 py-3.5 rounded-xl bg-primary text-white font-bold hover:bg-primary-container transition-colors shadow-lg disabled:opacity-50"
               >
-                Iya, Sudah
+                {isSubmitting ? "Mengirim..." : "Iya, Sudah"}
               </button>
             </div>
           </div>
