@@ -73,12 +73,12 @@ export default function LandingPage() {
         setShowSuccess(true);
         setFormData(null);
       } else {
-        alert(result.error || "Gagal mendaftar. Silakan coba lagi.");
         setShowConfirm(false);
+        alert(result.error || "Gagal mendaftar. Silakan coba lagi.");
       }
     } catch {
-      alert("Terjadi kesalahan jaringan. Silakan coba lagi.");
       setShowConfirm(false);
+      alert("Terjadi kesalahan jaringan. Silakan coba lagi.");
     } finally {
       setIsSubmitting(false);
     }
@@ -436,7 +436,8 @@ export default function LandingPage() {
               <CheckCircle2 size={56} />
             </div>
             <h2 className="font-serif text-3xl text-primary mb-4 font-bold">Alhamdulillah</h2>
-            <p className="text-neutral-600 mb-10 text-lg">Terima kasih sudah mendaftar! Semoga Allah menerima amal ibadah kita semua. Sampai jumpa di hari H 🤲</p>
+            <p className="text-neutral-600 mb-4 text-lg">Terima kasih sudah mendaftar! Semoga Allah menerima amal ibadah kita semua. Sampai jumpa di hari H 🤲</p>
+            <p className="text-neutral-400 mb-10 text-xs">📧 Email konfirmasi telah dikirim. Jika tidak masuk, cek folder Spam.</p>
             <button 
               onClick={() => { setShowSuccess(false); window.location.reload(); }}
               className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-primary-container transition-colors shadow-lg"

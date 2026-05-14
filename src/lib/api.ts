@@ -1,5 +1,5 @@
 // GANTI URL INI dengan URL dari Google Apps Script deployment kamu
-const API_URL = "https://script.google.com/macros/s/AKfycbwhhWKzAvm5CWKxbcKgdoVv_iaLPQanvELwsiPuw8ge3AelWdt2J8KL4E0VCBP8s4so/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyTXFODhnF0OmZ720Z7sqxeJqINqEI2z2lmLFi857_0CMQ2zF3Vc0nMBZRDUUwi0fbI/exec";
 
 export interface Participant {
   id: string;
@@ -13,12 +13,40 @@ export interface Participant {
 }
 
 async function postData(body: object) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify(body),
-  });
-  return res.json();
+  try {
+    // Google Apps Script needs this specific format to avoid CORS/redirect issues
+    const res = await fetch(API_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(body),
+    });
+    
+    // no-cors returns opaque response, so we need a different approach
+    // Use a workaround: send via URL params for GET request
+    return { success: true };
+  } catch {
+    return { success: false, error: "Network error" };
+  }
+}
+
+// Use GET-based approach which works better with Google Apps Script CORS
+async function getData(body: object) {
+  try {
+    const params = encodeURIComponent(JSON.stringify(body));
+    const res = await fetch(`${API_URL}?data=${params}`, {
+      method: "GET",
+      redirect: "follow",
+    });
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { success: false, error: "Invalid response" };
+    }
+  } catch {
+    return { success: false, error: "Network error" };
+  }
 }
 
 export async function registerParticipant(data: {
@@ -28,17 +56,17 @@ export async function registerParticipant(data: {
   email: string;
   location: string;
 }) {
-  return postData({ action: "register", ...data });
+  return getData({ action: "register", ...data });
 }
 
 export async function getAllParticipants(): Promise<{ success: boolean; data: Participant[] }> {
-  return postData({ action: "getAll" });
+  return getData({ action: "getAll" });
 }
 
 export async function updateHadir(id: string, hadir: boolean) {
-  return postData({ action: "updateHadir", id, hadir });
+  return getData({ action: "updateHadir", id, hadir });
 }
 
 export async function deleteParticipant(id: string) {
-  return postData({ action: "delete", id });
+  return getData({ action: "delete", id });
 }
